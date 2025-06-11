@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Detección de Eventos</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #333; }
+        .video-container { text-align: center; margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; background-color: #333; }
+        .video-container img { max-width: 100%; height: auto; border: 2px solid #555; }
+        .status-bar { padding: 15px; margin-bottom: 20px; border-radius: 5px; text-align: center; font-size: 1.2em; font-weight: bold; }
+        .status-normal { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-possible-fall { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .status-alarm-active { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; animation: blink-normal 1.2s infinite; }
+        /* status-alarm-critical ahora se usa para fuego desatendido en app.py */
+        .status-alarm-critical { background-color: #d9534f; color: white; border: 1px solid #d43f3a; animation: blink-critical 0.7s infinite; font-weight: bold; }
+        @keyframes blink-normal { 50% { opacity: 0.6; } }
+        @keyframes blink-critical { 50% { opacity: 0.4; transform: scale(1.02); } }
+
+        .btn {
+            background-color: #007bff; color: white; padding: 8px 12px; /* Un poco más pequeños */
+            border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;
+            text-decoration: none; margin: 3px;
+        }
+        .btn-danger { background-color: #dc3545; }
+        .btn-warning { background-color: #ffc107; color: black;}
+        .btn-success { background-color: #28a745; }
+        .btn-info { background-color: #17a2b8; } /* Para falso positivo */
+        .btn:hover { opacity: 0.85; }
+
+        .alarms-section { margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 0.9em; }
+        th { background-color: #f0f0f0; }
+
+        /* Estilos para los estados de alarma */
+        .alarm-new { /* Estilo base para alarmas nuevas */ }
+        .alarm-acknowledged { background-color: #fff3cd; }
+        .alarm-resolved { background-color: #d4edda; }
+        .alarm-false_positive { background-color: #e0e0e0; color: #757575; }
+
+        /* Colores específicos para alarmas NUEVAS según el tipo */
+        .alarm-new.type-caida { background-color: #f8d7da; } /* Rosa */
+        .alarm-new.type-fuego_desatendido { background-color: #c62828; color: white; } /* Rojo muy oscuro */
+        .alarm-new.type-luz_olvidada { background-color: #FFFACD; } /* Amarillo muy claro */
+
+        /* Iconos en la columna Tipo */
+        .type-caida td:nth-child(2)::before { content: "🚶 "; }
+        .type-fuego td:nth-child(2)::before { content: "🔥 "; } /* Si aún aparece fuego simple */
+        .type-fuego_desatendido td:nth-child(2)::before { content: "🔥 "; } /* Icono de fuego para desatendido */
+        .type-luz_olvidada td:nth-child(2)::before { content: "💡 ";}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sistema Inteligente de Detección de Eventos</h1>
+
+        <div id="status-indicator" class="status-bar status-normal">
+            Estado General: Cargando...
+        </div>
+
+        <div class="video-container">
+            <img id="video_feed_img" src="{{ url_for('video_feed') }}" alt="Video Stream">
+        </div>
+
+        <div class="alarms-section">
+            <h2>Gestión de Alarmas</h2>
+            <table id="alarmsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Hora Detección</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Las filas de alarma se insertarán aquí por JavaScript -->
+                </tbody>
+            </table>
+            <p id="noAlarmsText" style="text-align:center; display:none;">No hay alarmas activas.</p>
+        </div>
+    </div>
+
+    <script>
+        function manageAlarm(alarmId, action) {
+            fetch(`/manage_alarm/${alarmId}/${action}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.message);
+                    updateStatusAndAlarms();
+                })
+                .catch(error => console.error(`Error al ${action} alarma ${alarmId}:`, error));
+        }
+
+        // Función para formatear el tipo de alarma a mostrar
+        function formatAlarmType(type) {
+            if (type === 'caida') return 'Caída';
+            if (type === 'fuego_desatendido') return 'Fuego Desatendido'; // Añadido el nuevo tipo
+            if (type === 'fuego') return 'Fuego (Simple)'; // Si aún aparece este tipo
+            if (type === 'luz_olvidada') return 'Luz Olvidada';
+            // Fallback para otros tipos si se añaden
+            return type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.replace(/_/g, ' ').slice(1);
+        }
+
+        function updateStatusAndAlarms() {
+            fetch("{{ url_for('get_status_and_alarms') }}")
+                .then(response => response.json())
+                .then(data => {
+                    const statusBar = document.getElementById('status-indicator');
+                    statusBar.textContent = "Estado General: " + data.general_status_text;
+                    statusBar.className = 'status-bar ' + data.general_status_class;
+
+                    const alarmsTableBody = document.getElementById('alarmsTable').getElementsByTagName('tbody')[0];
+                    const noAlarmsText = document.getElementById('noAlarmsText');
+                    alarmsTableBody.innerHTML = '';
+
+                    if (data.alarms && data.alarms.length > 0) {
+                        noAlarmsText.style.display = 'none';
+                        data.alarms.forEach(alarm => {
+                            let row = alarmsTableBody.insertRow();
+                            // Aplicar clase para estado y tipo (esto ya estaba bien)
+                            row.className = `alarm-${alarm.status} type-${alarm.type}`;
+
+                            row.insertCell().textContent = alarm.id.substring(0,8);
+                            row.insertCell().textContent = formatAlarmType(alarm.type); // Usar la función de formato
+                            row.insertCell().textContent = new Date(alarm.timestamp_detected).toLocaleString();
+                            row.insertCell().textContent = alarm.status.charAt(0).toUpperCase() + alarm.status.slice(1);
+
+                            let actionsCell = row.insertCell();
+                            if (alarm.status === 'new') {
+                                let ackButton = document.createElement('button');
+                                ackButton.textContent = 'Reconocer';
+                                ackButton.className = 'btn btn-warning';
+                                ackButton.onclick = function() { manageAlarm(alarm.id, 'acknowledge'); };
+                                actionsCell.appendChild(ackButton);
+
+                                let fpButton = document.createElement('button');
+                                fpButton.textContent = 'Falso Pos.';
+                                fpButton.className = 'btn btn-info';
+                                fpButton.onclick = function() { manageAlarm(alarm.id, 'false_positive'); };
+                                actionsCell.appendChild(fpButton);
+
+                            } else if (alarm.status === 'acknowledged') {
+                                let resolveButton = document.createElement('button');
+                                resolveButton.textContent = 'Resolver';
+                                resolveButton.className = 'btn btn-success';
+                                resolveButton.onclick = function() { manageAlarm(alarm.id, 'resolve'); };
+                                actionsCell.appendChild(resolveButton);
+
+                                let fpButton = document.createElement('button');
+                                fpButton.textContent = 'Falso Pos.';
+                                fpButton.className = 'btn btn-info';
+                                fpButton.onclick = function() { manageAlarm(alarm.id, 'false_positive'); };
+                                actionsCell.appendChild(fpButton);
+                            } else {
+                                actionsCell.textContent = '---';
+                            }
+                        });
+                    } else {
+                        noAlarmsText.style.display = 'block';
+                    }
+                })
+                .catch(error => console.error('Error al obtener estado y alarmas:', error));
+        }
+
+        // Actualizar el estado y alarmas periódicamente
+        setInterval(updateStatusAndAlarms, 2000); // Cada 2 segundos
+        // Cargar estado inicial al cargar la página
+        document.addEventListener('DOMContentLoaded', updateStatusAndAlarms);
+    </script>
+</body>
+</html>
