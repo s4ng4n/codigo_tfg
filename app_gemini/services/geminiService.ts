@@ -27,7 +27,7 @@ export const analyzeImageForRisks = async (base64ImageData: string): Promise<Gem
 
   const imagePart = {
     inlineData: {
-      mimeType: 'image/jpeg', // Assuming JPEG, adjust if capturing PNG
+      mimeType: 'image/jpeg',
       data: base64ImageData,
     },
   };
@@ -43,8 +43,6 @@ export const analyzeImageForRisks = async (base64ImageData: string): Promise<Gem
       config: {
         systemInstruction: GEMINI_PROMPT_SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
-        // Disable thinking for lower latency if needed, but for safety critical, higher quality might be better.
-        // thinkingConfig: { thinkingBudget: 0 } // Only for 'gemini-2.5-flash-preview-04-17'
       },
     });
     
@@ -57,7 +55,6 @@ export const analyzeImageForRisks = async (base64ImageData: string): Promise<Gem
 
     const parsedData = JSON.parse(jsonStr) as GeminiAnalysisResponse;
 
-    // Validate parsed data structure
     if (typeof parsedData.detected_risk !== 'string' || !Object.values(RiskType).includes(parsedData.detected_risk as RiskType)) {
       console.warn('Respuesta de Gemini con detected_risk inválido:', parsedData);
       return { detected_risk: RiskType.UNKNOWN, description: "Respuesta de IA inválida o no concluyente.", confidence_score: 0 };

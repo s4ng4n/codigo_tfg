@@ -21,13 +21,12 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
 
 
   const captureFrame = useCallback(() => {
-    if (isAnalyzing) return; // Prevent concurrent captures if previous one is still running
+    if (isAnalyzing) return;
 
     if (videoRef.current && canvasRef.current && videoRef.current.readyState >= 3 && videoRef.current.videoWidth > 0) { // readyState 3 (HAVE_FUTURE_DATA) or 4 (HAVE_ENOUGH_DATA)
       const videoNode = videoRef.current;
       const canvasNode = canvasRef.current;
       
-      // Ensure canvas has dimensions, especially if video just loaded
       if (canvasNode.width !== videoNode.videoWidth || canvasNode.height !== videoNode.videoHeight) {
         canvasNode.width = videoNode.videoWidth;
         canvasNode.height = videoNode.videoHeight;
@@ -40,7 +39,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
         onFrameCapture(base64ImageData.split(',')[1]);
       }
     } else {
-       // console.warn("Video not ready for frame capture or dimensions are zero.");
     }
   }, [onFrameCapture, isAnalyzing]);
 
@@ -48,7 +46,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
     const setupMedia = async () => {
       setIsLoading(true);
       setMediaError(null);
-      // Stop existing tracks if any (e.g., switching from webcam to file)
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop());
         setMediaStream(null);
@@ -64,7 +61,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
           setMediaStream(stream);
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            videoRef.current.muted = true; // Mute webcam to prevent feedback
+            videoRef.current.muted = true;
             videoRef.current.loop = false;
             videoRef.current.play().catch(e => {
                  console.error("Error playing webcam stream:", e);
@@ -98,7 +95,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
           });
           setMediaError(null);
 
-          // Cleanup object URL when component unmounts or videoFile changes
           return () => {
             URL.revokeObjectURL(objectURL);
             if (videoRef.current) {
@@ -108,14 +104,12 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
         }
       } else if (sourceType === 'file' && !videoFile) {
         setMediaError("No se ha proporcionado ningún archivo de video.");
-        // onError callback might not be appropriate here as it's a state within App, not a device error.
       }
       setIsLoading(false);
     };
 
     setupMedia();
     
-    // Cleanup function for mediaStream when component unmounts or sourceType changes
     return () => {
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop());
@@ -127,30 +121,26 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
         clearInterval(analysisIntervalRef.current);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceType, videoFile, onError]); // mediaStream should not be in deps to avoid loop
+  }, [sourceType, videoFile, onError]);
 
   useEffect(() => {
     if (analysisIntervalRef.current) {
       clearInterval(analysisIntervalRef.current);
     }
 
-    // Start interval only if not loading, no error, and video is available
     if (!isLoading && !mediaError && videoRef.current ) {
-      // Wait for video to be ready to play before starting interval
       const videoElement = videoRef.current;
       const onCanPlay = () => {
-        if (analysisIntervalRef.current) clearInterval(analysisIntervalRef.current); // Clear any existing
-        analysisIntervalRef.current = window.setInterval(() => { // Use window.setInterval for clarity
-          if (!isAnalyzing) { // Check isAnalyzing before capturing
+        if (analysisIntervalRef.current) clearInterval(analysisIntervalRef.current);
+        analysisIntervalRef.current = window.setInterval(() => {
+          if (!isAnalyzing) {
             captureFrame();
           }
         }, IMAGE_ANALYSIS_INTERVAL_MS);
       };
       
       videoElement.addEventListener('canplay', onCanPlay);
-      // If video is already playable, trigger manually
-      if (videoElement.readyState >= 3) { // HAVE_FUTURE_DATA
+      if (videoElement.readyState >= 3) { 
           onCanPlay();
       }
 
@@ -161,14 +151,13 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
         }
       };
     }
-  }, [isLoading, mediaError, captureFrame, isAnalyzing]); // isAnalyzing added to restart interval if it was paused
+  }, [isLoading, mediaError, captureFrame, isAnalyzing]); 
 
   const handleVideoLoaded = () => {
     setIsLoading(false);
     if (videoRef.current && (sourceType === 'file' || (sourceType === 'webcam' && mediaStream))) {
         videoRef.current.play().catch(e => {
              console.error("Error playing video on loadeddata:", e);
-             // Error already handled in setupMedia generally
         });
     }
   };
@@ -178,10 +167,10 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
     <div className="relative w-full aspect-video bg-gray-800 rounded-lg shadow-xl overflow-hidden border-2 border-gray-700">
       <video
         ref={videoRef}
-        playsInline // Important for iOS
+        playsInline
         className="w-full h-full object-cover"
-        onLoadedData={handleVideoLoaded} // Helps in knowing when video metadata is loaded
-        onCanPlay={() => setIsLoading(false)} // Another event to signal readiness
+        onLoadedData={handleVideoLoaded} 
+        onCanPlay={() => setIsLoading(false)}
         onError={(e) => {
             console.error("Video element error:", e);
             setMediaError("Error interno del elemento de video.");
@@ -190,7 +179,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceType, videoFile, onFrameC
         }}
       />
       <canvas ref={canvasRef} className="hidden"></canvas>
-      {isLoading && sourceType !== 'file' && !videoFile && ( // Show loading only if not waiting for a file selection
+      {isLoading && sourceType !== 'file' && !videoFile && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
           <LoadingSpinner message={sourceType === 'webcam' ? "Iniciando cámara..." : "Cargando video..."} />
         </div>

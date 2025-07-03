@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import CameraFeed from './components/CameraFeed';
 import AlertNotification from './components/AlertNotification';
@@ -6,7 +5,7 @@ import StatusIndicator from './components/StatusIndicator';
 import LoadingSpinner from './components/LoadingSpinner';
 import { initializeGeminiService, analyzeImageForRisks } from './services/geminiService';
 import { RiskType, DetectedRisk, Alert as AlertType } from './types';
-import { MIN_CONFIDENCE_SCORE, IMAGE_ANALYSIS_INTERVAL_MS } from './constants';
+import { MIN_CONFIDENCE_SCORE } from './constants';
 
 type VideoSourceType = 'webcam' | 'file';
 
@@ -21,7 +20,7 @@ const App: React.FC = () => {
 
   const [videoSource, setVideoSource] = useState<VideoSourceType>('webcam');
   const [uploadedVideoFile, setUploadedVideoFile] = useState<File | null>(null);
-  const [cameraFeedKey, setCameraFeedKey] = useState<string>(Date.now().toString()); // Key to force remount CameraFeed
+  const [cameraFeedKey, setCameraFeedKey] = useState<string>(Date.now().toString());
 
   useEffect(() => {
     const initError = initializeGeminiService();
@@ -39,16 +38,16 @@ const App: React.FC = () => {
     setCurrentRiskDetails(null);
     setActiveAlert(null);
     setLastAnalysisTime(null);
-    setAppError(null); // Clear general app errors, camera-specific errors will be handled by CameraFeed
+    setAppError(null);
   };
 
   const handleVideoSourceChange = (source: VideoSourceType) => {
     resetAnalysisState();
     setVideoSource(source);
     if (source === 'webcam') {
-      setUploadedVideoFile(null); // Clear uploaded file if switching to webcam
+      setUploadedVideoFile(null);
     }
-    setCameraFeedKey(Date.now().toString()); // Change key to force remount CameraFeed
+    setCameraFeedKey(Date.now().toString());
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -56,10 +55,10 @@ const App: React.FC = () => {
     if (file) {
       resetAnalysisState();
       setUploadedVideoFile(file);
-      setCameraFeedKey(Date.now().toString()); // Change key to force remount CameraFeed for new file
+      setCameraFeedKey(Date.now().toString());
     } else {
       setUploadedVideoFile(null);
-      if (videoSource === 'file') { // If still in file mode but file is deselected
+      if (videoSource === 'file') {
          setAppError("No se ha seleccionado ningún archivo de video.");
       }
     }
@@ -75,14 +74,11 @@ const App: React.FC = () => {
       return;
     }
     if (videoSource === 'file' && !uploadedVideoFile) {
-        // This case should ideally be prevented by UI logic, but as a safeguard:
         setAppError("Intentando analizar sin un archivo de video cargado.");
         return;
     }
 
     setIsAnalyzing(true);
-    // Do not clear appError here as it might be a persistent config error like API_KEY
-    // setActiveAlert(null); // Clear previous risk alerts
 
     try {
       const analysisResult = await analyzeImageForRisks(base64ImageData);
@@ -100,7 +96,7 @@ const App: React.FC = () => {
          }
         setCurrentRisk(RiskType.NONE);
       }
-      // Clear non-critical app errors if analysis was successful
+      
       if(appError && !appError.includes("API_KEY") && !appError.includes("Error de Video/Cámara")) {
         setAppError(null);
       }
@@ -139,7 +135,7 @@ const App: React.FC = () => {
     if (videoSource === 'webcam') {
       return (
         <CameraFeed
-          key={cameraFeedKey} // Force remount on source change
+          key={cameraFeedKey}
           sourceType="webcam"
           onFrameCapture={handleFrameCapture}
           isAnalyzing={isAnalyzing}
@@ -151,7 +147,7 @@ const App: React.FC = () => {
       if (uploadedVideoFile) {
         return (
           <CameraFeed
-            key={cameraFeedKey} // Force remount on source/file change
+            key={cameraFeedKey}
             sourceType="file"
             videoFile={uploadedVideoFile}
             onFrameCapture={handleFrameCapture}
@@ -252,7 +248,7 @@ const App: React.FC = () => {
 
       <footer className="w-full max-w-4xl mt-10 pt-6 border-t border-gray-700 text-center">
         <p className="text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} Proyecto de Asistencia Inteligente.
+          © {new Date().getFullYear()} Proyecto de Asistencia Inteligente.
           <br/>La precisión de la detección depende de la calidad de imagen y del modelo de IA.
         </p>
          {process.env.API_KEY ? null : <p className="text-yellow-500 text-xs mt-1">ADVERTENCIA: La API Key de Gemini no está configurada. El análisis de imágenes no funcionará.</p>}

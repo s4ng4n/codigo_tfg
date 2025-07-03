@@ -24,7 +24,7 @@ export const DEFAULT_CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   video: {
     width: { ideal: 640 },
     height: { ideal: 480 },
-    facingMode: "user" // "environment" for rear camera
+    facingMode: "user"
   },
   audio: false,
 };
