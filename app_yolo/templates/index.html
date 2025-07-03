@@ -14,7 +14,6 @@
         .status-normal { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .status-possible-fall { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
         .status-alarm-active { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; animation: blink-normal 1.2s infinite; }
-        /* status-alarm-critical ahora se usa para fuego desatendido en app.py */
         .status-alarm-critical { background-color: #d9534f; color: white; border: 1px solid #d43f3a; animation: blink-critical 0.7s infinite; font-weight: bold; }
         @keyframes blink-normal { 50% { opacity: 0.6; } }
         @keyframes blink-critical { 50% { opacity: 0.4; transform: scale(1.02); } }
@@ -42,10 +41,10 @@
         .alarm-false_positive { background-color: #e0e0e0; color: #757575; }
 
         /* Colores específicos para alarmas NUEVAS según el tipo */
-        .alarm-new.type-caida { background-color: #f8d7da; } /* Rosa */
-        .alarm-new.type-fuego_desatendido { background-color: #c62828; color: white; } /* Rojo muy oscuro */
-        .alarm-new.type-luz_olvidada { background-color: #FFFACD; } /* Amarillo muy claro */
-
+        .alarm-new.type-caida { background-color: #f8d7da; }
+        .alarm-new.type-fuego_desatendido { background-color: #c62828; color: white; }
+        .alarm-new.type-luz_olvidada { background-color: #FFFACD; }  Amarillo muy claro 
+        
         /* Iconos en la columna Tipo */
         .type-caida td:nth-child(2)::before { content: "🚶 "; }
         .type-fuego td:nth-child(2)::before { content: "🔥 "; } /* Si aún aparece fuego simple */
@@ -79,7 +78,6 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Las filas de alarma se insertarán aquí por JavaScript -->
                 </tbody>
             </table>
             <p id="noAlarmsText" style="text-align:center; display:none;">No hay alarmas activas.</p>
@@ -96,14 +94,12 @@
                 })
                 .catch(error => console.error(`Error al ${action} alarma ${alarmId}:`, error));
         }
-
-        // Función para formatear el tipo de alarma a mostrar
         function formatAlarmType(type) {
             if (type === 'caida') return 'Caída';
-            if (type === 'fuego_desatendido') return 'Fuego Desatendido'; // Añadido el nuevo tipo
-            if (type === 'fuego') return 'Fuego (Simple)'; // Si aún aparece este tipo
+            if (type === 'fuego_desatendido') return 'Fuego Desatendido';
+            if (type === 'fuego') return 'Fuego (Simple)';
             if (type === 'luz_olvidada') return 'Luz Olvidada';
-            // Fallback para otros tipos si se añaden
+            
             return type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.replace(/_/g, ' ').slice(1);
         }
 
@@ -123,11 +119,10 @@
                         noAlarmsText.style.display = 'none';
                         data.alarms.forEach(alarm => {
                             let row = alarmsTableBody.insertRow();
-                            // Aplicar clase para estado y tipo (esto ya estaba bien)
                             row.className = `alarm-${alarm.status} type-${alarm.type}`;
 
                             row.insertCell().textContent = alarm.id.substring(0,8);
-                            row.insertCell().textContent = formatAlarmType(alarm.type); // Usar la función de formato
+                            row.insertCell().textContent = formatAlarmType(alarm.type);
                             row.insertCell().textContent = new Date(alarm.timestamp_detected).toLocaleString();
                             row.insertCell().textContent = alarm.status.charAt(0).toUpperCase() + alarm.status.slice(1);
 
